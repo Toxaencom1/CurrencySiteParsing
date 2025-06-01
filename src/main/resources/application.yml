@@ -1,0 +1,17 @@
+spring.application.name: CurrencySiteParsing
+parsing.delay: 15
+
+email:
+  from:
+    user: example@email.com
+    pass: password
+  to: example@email.com
+  topic: "Курсы валют от Kurs.kz"
+
+always: false
+
+sum: 0
+
+currency: usd
+
+type: sell

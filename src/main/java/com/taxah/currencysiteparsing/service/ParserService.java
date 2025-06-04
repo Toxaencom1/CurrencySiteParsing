@@ -1,7 +1,6 @@
 package com.taxah.currencysiteparsing.service;
 
 import com.taxah.currencysiteparsing.model.Exchanger;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
@@ -9,28 +8,22 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ParserService {
-
-    private final List<WebDriver> activeDrivers = new CopyOnWriteArrayList<>();
-    private volatile boolean isShuttingDown = false;
-    private final ObjectProvider<WebDriver> webDriverProvider;
+    private final WebDriverService webDriverService;
 
     public List<Exchanger> parse() {
         List<Exchanger> exchangersList = new ArrayList<>();
-        WebDriver driver = getDriver();
+        WebDriver driver = webDriverService.getDriver();
         try {
             driver.get("https://kurs.kz/site/index?city=almaty");
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
@@ -87,66 +80,7 @@ public class ParserService {
             return exchangersList;
         } finally {
             if (driver != null) {
-                closeDriver(driver);
-            }
-        }
-    }
-
-    @PostConstruct
-    public void registerShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.info("Получен сигнал завершения работы");
-            isShuttingDown = true;
-            cleanUp();
-            try {
-                TimeUnit.SECONDS.sleep(2);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            System.out.println("Завершение работы выполнено");
-        }));
-        log.info("Зарегистрирован hook завершения работы");
-    }
-
-    private void cleanUp() {
-        if (activeDrivers.isEmpty()) {
-            log.info("Нет активных драйверов для закрытия");
-            return;
-        }
-        log.info("Начало процесса закрытия драйверов. Активных драйверов: {}", activeDrivers.size());
-        activeDrivers.forEach(driver -> {
-            try {
-                driver.quit();
-                System.out.println("Драйвер успешно закрыт.");
-            } catch (Exception e) {
-                log.error("Ошибка при закрытии драйвера: {}", e.getMessage());
-            }
-        });
-        activeDrivers.clear();
-        System.out.println("Все драйверы закрыты");
-    }
-
-    protected WebDriver getDriver() {
-        if (isShuttingDown) {
-            throw new IllegalStateException("Приложение находится в процессе завершения работы");
-        }
-        WebDriver driver = webDriverProvider.getObject();
-        activeDrivers.add(driver);
-        return driver;
-    }
-
-    public void closeDriver(WebDriver driver) {
-        if (driver != null) {
-            try {
-                driver.quit();
-                log.info("Драйвер успешно закрыт");
-            } catch (Exception e) {
-                log.error("Ошибка при закрытии драйвера: {}", e.getMessage());
-            } finally {
-                boolean removed = activeDrivers.remove(driver);
-                if (!removed) {
-                    log.warn("Драйвер не был найден в списке активных драйверов");
-                }
+                webDriverService.closeDriver(driver);
             }
         }
     }
